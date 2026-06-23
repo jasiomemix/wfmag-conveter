@@ -1,11 +1,24 @@
 from flask import Flask, render_template, request, send_file, jsonify
 import openpyxl
 import io
+import os
+import sys
 import zipfile
+import webbrowser
+import threading
 from datetime import datetime
 from xml.etree.ElementTree import Element, SubElement, ElementTree, indent
 
-app = Flask(__name__)
+FIRMA_NAZWA = 'MOREX GM SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ'
+
+def resource_path(relative_path):
+    if getattr(sys, 'frozen', False):
+        base_path = sys._MEIPASS
+    else:
+        base_path = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base_path, relative_path)
+
+app = Flask(__name__, template_folder=resource_path('templates'))
 app.config['MAX_CONTENT_LENGTH'] = 64 * 1024 * 1024
 
 # ═══════════════════════════════════════════════
@@ -457,7 +470,7 @@ def convert():
         return jsonify({'error': 'Brak pliku'}), 400
     f = request.files['file']
     matrix = request.form.get('matrix', 'matrix2')
-    firma = request.form.get('firma', 'Firma').strip() or 'Firma'
+    firma = FIRMA_NAZWA
     prefix = request.form.get('prefix', '').strip()
     seller_iln = request.form.get('seller_iln', '').strip()
     nip = request.form.get('nip', '').strip()
@@ -512,5 +525,12 @@ def convert():
         return send_file(zip_buf, as_attachment=True, download_name=zname, mimetype='application/zip')
 
 
+def open_browser():
+    webbrowser.open('http://localhost:5050')
+
 if __name__ == '__main__':
-    app.run(debug=True, port=5050)
+    if getattr(sys, 'frozen', False):
+        threading.Timer(1.5, open_browser).start()
+        app.run(host='127.0.0.1', port=5050, debug=False)
+    else:
+        app.run(debug=True, port=5050)

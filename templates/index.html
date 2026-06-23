@@ -563,7 +563,7 @@ footer {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
       <div class="field" style="margin-bottom:0">
         <label>Nazwa firmy</label>
-        <input type="text" id="firma" placeholder="np. Morex GM Sp. z o.o.">
+        <div style="padding:10px 14px;background:var(--s2);border:1px solid var(--border2);border-radius:7px;font-size:14px;color:var(--accent);font-family:'Space Mono',monospace;font-size:11px;line-height:1.4">MOREX GM SP. Z O.O.</div>
       </div>
       <div class="field" style="margin-bottom:0">
         <label>Prefix kontrahenta</label>
@@ -825,7 +825,7 @@ async function convertFile() {
   const fd = new FormData();
   fd.append('file', selectedFile);
   fd.append('matrix', currentMatrix);
-  fd.append('firma', document.getElementById('firma').value.trim() || 'Firma');
+  fd.append('firma', 'MOREX GM SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ');
   fd.append('prefix', document.getElementById('prefix').value.trim().toUpperCase());
   fd.append('nip', document.getElementById('nip').value.trim());
   fd.append('vat_rate', document.getElementById('vatRate').value);
