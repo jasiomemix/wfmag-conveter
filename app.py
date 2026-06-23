@@ -4,7 +4,6 @@ import io
 import os
 import sys
 import zipfile
-import webbrowser
 import threading
 from datetime import datetime
 from xml.etree.ElementTree import Element, SubElement, ElementTree, indent
@@ -525,12 +524,21 @@ def convert():
         return send_file(zip_buf, as_attachment=True, download_name=zname, mimetype='application/zip')
 
 
-def open_browser():
-    webbrowser.open('http://localhost:5050')
+def start_flask():
+    app.run(host='127.0.0.1', port=5050, debug=False, use_reloader=False)
 
 if __name__ == '__main__':
     if getattr(sys, 'frozen', False):
-        threading.Timer(1.5, open_browser).start()
-        app.run(host='127.0.0.1', port=5050, debug=False)
+        import webview
+        server_thread = threading.Thread(target=start_flask, daemon=True)
+        server_thread.start()
+        webview.create_window(
+            'WF-Mag Konwerter — MOREX GM',
+            'http://127.0.0.1:5050',
+            width=800,
+            height=900,
+            min_size=(600, 500),
+        )
+        webview.start()
     else:
         app.run(debug=True, port=5050)
