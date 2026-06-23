@@ -24,6 +24,13 @@ if errorlevel 1 (
 
 echo.
 echo [2/3] Budowanie pliku EXE...
+
+:: Zamknij poprzedni proces jesli dziala
+taskkill /f /im WFMag-Konwerter.exe >nul 2>nul
+
+:: Usun poprzedni build
+if exist dist\WFMag-Konwerter.exe del /f dist\WFMag-Konwerter.exe
+
 pyinstaller --noconfirm wfmag-converter.spec
 if errorlevel 1 (
     echo [BLAD] Budowanie nie powiodlo sie.
