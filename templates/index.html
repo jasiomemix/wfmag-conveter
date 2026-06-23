@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WF-Mag Konwerter</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0c;
+  --s1: #111114;
+  --s2: #18181d;
+  --s3: #1f1f26;
+  --border: #27272f;
+  --border2: #33333d;
+  --accent: #00e5a0;
+  --accent-dim: rgba(0,229,160,0.12);
+  --accent-glow: rgba(0,229,160,0.25);
+  --accent2: #6c5ce7;
+  --accent2-dim: rgba(108,92,231,0.12);
+  --accent2-glow: rgba(108,92,231,0.25);
+  --text: #dddde8;
+  --muted: #5e5e6e;
+  --muted2: #888898;
+  --err: #ff4d6d;
+  --warn: #ffbe0b;
+  --radius: 10px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 20px 80px;
+}
+
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  top: -300px; left: 50%;
+  transform: translateX(-50%);
+  width: 700px; height: 500px;
+  background: radial-gradient(ellipse, rgba(0,229,160,0.05) 0%, transparent 65%);
+  pointer-events: none;
+  transition: background 0.6s;
+}
+
+body.matrix1-mode::after {
+  background: radial-gradient(ellipse, rgba(108,92,231,0.06) 0%, transparent 65%);
+}
+
+.wrap {
+  position: relative; z-index: 1;
+  width: 100%; max-width: 660px;
+}
+
+/* ── HEADER ── */
+header { text-align: center; margin-bottom: 44px; }
+
+.pill {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--s2); border: 1px solid var(--border2);
+  border-radius: 100px; padding: 5px 14px 5px 10px;
+  margin-bottom: 22px;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--accent);
+  transition: color 0.4s, border-color 0.4s;
+}
+.pill-dot {
+  width: 7px; height: 7px; background: var(--accent);
+  border-radius: 50%; animation: pulse 2.4s infinite;
+  transition: background 0.4s;
+}
+@keyframes pulse {
+  0%,100% { opacity:1; transform:scale(1); }
+  50%      { opacity:0.3; transform:scale(0.7); }
+}
+
+h1 {
+  font-family: 'Space Mono', monospace;
+  font-size: clamp(26px, 5vw, 40px);
+  font-weight: 700; line-height: 1.1;
+  letter-spacing: -0.025em; margin-bottom: 10px;
+}
+h1 em { font-style: normal; color: var(--accent); transition: color 0.4s; }
+
+.sub {
+  color: var(--muted2); font-size: 14px;
+  font-weight: 300; line-height: 1.6;
+}
+
+/* ── MATRIX SELECTOR (step 0) ── */
+#matrix-selector {
+  margin-bottom: 28px;
+}
+#matrix-selector.hidden { display: none; }
+
+.matrix-heading {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 16px;
+  display: flex; align-items: center; gap: 10px;
+}
+.matrix-heading::after {
+  content:''; flex:1; height:1px; background: var(--border);
+}
+
+.matrix-cards {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+
+.matrix-card {
+  position: relative;
+  background: var(--s1);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  padding: 22px 20px 20px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.22, 0.68, 0, 1.1);
+  overflow: hidden;
+}
+.matrix-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s cubic-bezier(0.22, 0.68, 0, 1.1);
+}
+.matrix-card:hover {
+  border-color: var(--border2);
+  transform: translateY(-2px);
+}
+.matrix-card.selected {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+.matrix-card.selected::before {
+  transform: scaleX(1);
+}
+
+.matrix-card[data-matrix="matrix1"].selected {
+  border-color: var(--accent2);
+  background: var(--accent2-dim);
+}
+.matrix-card[data-matrix="matrix1"].selected::before {
+  background: var(--accent2);
+}
+
+.mc-icon {
+  font-size: 28px;
+  margin-bottom: 10px;
+  display: block;
+}
+
+.mc-name {
+  font-family: 'Space Mono', monospace;
+  font-size: 13px; font-weight: 700;
+  margin-bottom: 6px;
+  letter-spacing: -0.01em;
+}
+
+.mc-desc {
+  font-size: 11.5px;
+  color: var(--muted2);
+  line-height: 1.5;
+}
+
+.mc-badge {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.matrix-card[data-matrix="matrix2"] .mc-badge {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border: 1px solid rgba(0,229,160,0.2);
+}
+.matrix-card[data-matrix="matrix1"] .mc-badge {
+  background: var(--accent2-dim);
+  color: var(--accent2);
+  border: 1px solid rgba(108,92,231,0.2);
+}
+
+.mc-preview {
+  margin-top: 12px;
+  padding: 8px 10px;
+  background: var(--s3);
+  border-radius: 6px;
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  color: var(--muted2);
+  line-height: 1.7;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.mc-preview .col-hl {
+  color: var(--accent);
+}
+.matrix-card[data-matrix="matrix1"] .mc-preview .col-hl {
+  color: var(--accent2);
+}
+
+.auto-badge {
+  display: none;
+  margin-top: 8px;
+  padding: 4px 10px;
+  border-radius: 100px;
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  background: rgba(255,190,11,0.1);
+  color: var(--warn);
+  border: 1px solid rgba(255,190,11,0.2);
+}
+.auto-badge.show { display: inline-block; }
+
+/* ── STEPS ── */
+.steps {
+  display: flex; align-items: center; gap: 0;
+  margin-bottom: 28px;
+}
+.step-item {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; font-weight: 500;
+  color: var(--muted); transition: color 0.3s;
+}
+.step-item.active { color: var(--accent); }
+.step-item.done   { color: var(--muted2); }
+.step-num {
+  width: 24px; height: 24px; border-radius: 50%;
+  border: 1px solid currentColor;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Space Mono', monospace; font-size: 10px;
+  transition: all 0.3s;
+}
+.step-item.active .step-num {
+  background: var(--accent); color: #000; border-color: var(--accent);
+}
+.step-item.done .step-num {
+  background: var(--s3); color: var(--accent); border-color: var(--border2);
+}
+.step-line {
+  flex: 1; height: 1px; background: var(--border2); margin: 0 10px;
+}
+
+/* ── CARD ── */
+.card {
+  background: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 28px;
+  margin-bottom: 14px;
+}
+
+.section-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 16px;
+  display: flex; align-items: center; gap: 10px;
+}
+.section-label::after {
+  content:''; flex:1; height:1px; background: var(--border);
+}
+
+.matrix-indicator {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 10px 3px 8px;
+  border-radius: 100px;
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  margin-bottom: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.matrix-indicator:hover { opacity: 0.8; }
+.matrix-indicator.m2 {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border: 1px solid rgba(0,229,160,0.2);
+}
+.matrix-indicator.m1 {
+  background: var(--accent2-dim);
+  color: var(--accent2);
+  border: 1px solid rgba(108,92,231,0.2);
+}
+.matrix-indicator .mi-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: currentColor;
+}
+
+/* field */
+.field { margin-bottom: 16px; }
+.field label { display:block; font-size:11px; font-weight:500; color:var(--muted2); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:6px; }
+.field input, .field select {
+  width:100%; background:var(--s2); border:1px solid var(--border2);
+  border-radius:7px; padding:10px 14px; color:var(--text);
+  font-family:'DM Sans',sans-serif; font-size:14px; outline:none;
+  transition: border-color 0.2s;
+  -webkit-appearance: none;
+}
+.field input:focus, .field select:focus { border-color: var(--accent); }
+.field input::placeholder { color: var(--muted); }
+.field select option { background: var(--s2); color: var(--text); }
+
+/* drop */
+.drop {
+  border: 2px dashed var(--border2); border-radius: var(--radius);
+  padding: 44px 20px; text-align: center;
+  cursor: pointer; transition: all 0.22s;
+  background: var(--s2); position: relative; overflow: hidden;
+}
+.drop::before {
+  content:''; position:absolute; inset:0;
+  background: radial-gradient(ellipse at 50% 0%, rgba(0,229,160,0.04) 0%, transparent 70%);
+  opacity:0; transition: opacity 0.3s;
+}
+.drop:hover, .drop.over { border-color: var(--accent); }
+.drop:hover::before, .drop.over::before { opacity:1; }
+.drop.loaded { border-color: var(--accent); border-style: solid; }
+
+.drop input[type=file] {
+  position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%;
+}
+
+.drop-icon { font-size:38px; display:block; margin-bottom:10px; transition: transform 0.2s; }
+.drop:hover .drop-icon { transform: translateY(-4px); }
+.drop-title { font-size:15px; font-weight:500; margin-bottom:4px; }
+.drop-hint { font-size:12px; color:var(--muted); }
+
+.file-loaded {
+  display:none; margin-top:14px; align-items:center; justify-content:center;
+  gap:8px; font-size:13px; color:var(--accent);
+  font-family:'Space Mono',monospace;
+}
+.file-loaded.show { display:flex; }
+
+/* ── SHOPS GRID ── */
+#shops-section { display:none; }
+#shops-section.show { display:block; }
+
+.shops-toolbar {
+  display:flex; gap:8px; margin-bottom:14px;
+}
+.btn-tiny {
+  padding:5px 12px; border-radius:5px; font-size:11px; font-weight:600;
+  cursor:pointer; border:1px solid var(--border2);
+  background:var(--s2); color:var(--muted2); transition:all 0.15s;
+}
+.btn-tiny:hover { border-color:var(--accent); color:var(--accent); }
+
+.shops-grid {
+  display:grid; grid-template-columns: 1fr 1fr; gap:8px;
+}
+
+.shop-item {
+  display:flex; align-items:center; gap:10px;
+  padding:12px 14px; border-radius:8px;
+  background:var(--s2); border:1px solid var(--border);
+  cursor:pointer; transition:all 0.18s; user-select:none;
+}
+.shop-item:hover { border-color:var(--border2); }
+.shop-item.checked {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+.shop-item input[type=checkbox] { display:none; }
+
+.shop-check {
+  width:18px; height:18px; border-radius:4px;
+  border:1.5px solid var(--border2); flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  transition:all 0.18s;
+}
+.shop-item.checked .shop-check {
+  background:var(--accent); border-color:var(--accent); color:#000;
+}
+.shop-check svg { display:none; }
+.shop-item.checked .shop-check svg { display:block; }
+
+.shop-info { flex:1; min-width:0; }
+.shop-name { font-size:13px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.shop-count { font-size:11px; color:var(--muted); margin-top:2px; }
+.shop-count span { color:var(--accent); font-family:'Space Mono',monospace; }
+
+/* ── BUTTONS ── */
+.actions { display:flex; gap:10px; margin-top:20px; }
+
+.btn {
+  flex:1; padding:13px 18px; border-radius:8px;
+  font-family:'DM Sans',sans-serif; font-size:14px; font-weight:600;
+  cursor:pointer; border:none; transition:all 0.2s;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+}
+.btn-primary {
+  background:var(--accent); color:#000;
+}
+.btn-primary:hover:not(:disabled) {
+  background:#00ffb3;
+  box-shadow: 0 6px 20px var(--accent-glow);
+  transform: translateY(-1px);
+}
+.btn-primary:disabled { opacity:0.35; cursor:not-allowed; }
+.btn-ghost {
+  background:var(--s2); color:var(--muted2);
+  border:1px solid var(--border2);
+}
+.btn-ghost:hover { border-color:var(--muted); color:var(--text); transform:translateY(-1px); }
+
+/* ── STATUS ── */
+.status {
+  display:none; padding:13px 16px; border-radius:8px;
+  font-size:13px; margin-top:14px;
+  align-items:flex-start; gap:10px; line-height:1.5;
+}
+.status.show { display:flex; }
+.status.err  { background:rgba(255,77,109,0.07); border:1px solid rgba(255,77,109,0.25); color:#ff8099; }
+.status.ok   { background:rgba(0,229,160,0.07); border:1px solid rgba(0,229,160,0.25); color:var(--accent); }
+.status.spin { background:var(--s2); border:1px solid var(--border); color:var(--muted2); }
+
+@keyframes rotate { to { transform:rotate(360deg); } }
+.spinner {
+  width:15px; height:15px; border-radius:50%;
+  border:2px solid transparent; border-top-color:currentColor;
+  animation:rotate 0.7s linear infinite; flex-shrink:0; margin-top:1px;
+}
+
+.selected-count {
+  font-size:12px; color:var(--muted); margin-top:12px; text-align:right;
+  font-family:'Space Mono',monospace;
+}
+.selected-count span { color:var(--accent); }
+
+footer {
+  margin-top:48px; text-align:center;
+  font-family:'Space Mono',monospace; font-size:11px; color:var(--muted);
+}
+
+/* ── INFO STRIP ── */
+.info-strip {
+  display: none;
+  margin-bottom: 20px;
+  padding: 10px 16px;
+  background: var(--s2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--muted2);
+  line-height: 1.6;
+  gap: 8px;
+  align-items: center;
+}
+.info-strip.show { display: flex; }
+.info-strip .is-icon { font-size: 16px; flex-shrink: 0; }
+
+/* ── FADE-IN ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in {
+  animation: fadeUp 0.35s ease-out forwards;
+}
+
+@media(max-width:520px) {
+  .shops-grid { grid-template-columns:1fr; }
+  .matrix-cards { grid-template-columns:1fr; }
+  .actions { flex-direction:column; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="pill"><div class="pill-dot"></div>WF-Mag Import Tool</div>
+    <h1>Excel <em>→</em> WF-Mag</h1>
+    <p class="sub">Wgraj plik eksportu, wybierz sklepy<br>i pobierz gotowe pliki do importu</p>
+  </header>
+
+  <!-- MATRIX SELECTOR -->
+  <div id="matrix-selector">
+    <div class="matrix-heading">Wybierz format pliku</div>
+    <div class="matrix-cards">
+
+      <div class="matrix-card" data-matrix="matrix2" onclick="selectMatrix('matrix2')">
+        <span class="mc-icon">📊</span>
+        <div class="mc-name">Matrix 2</div>
+        <div class="mc-desc">Pełny eksport z cenami, kodami artykułów i numerami Object No.</div>
+        <span class="mc-badge">Oryginalny format</span>
+        <div class="mc-preview">
+          <span class="col-hl">Article Code</span> | <span class="col-hl">Barcode</span> | Name | <span class="col-hl">Prices</span> | Shops…
+        </div>
+        <span class="auto-badge" id="auto-m2">⚡ auto-wykryty</span>
+      </div>
+
+      <div class="matrix-card" data-matrix="matrix1" onclick="selectMatrix('matrix1')">
+        <span class="mc-icon">📋</span>
+        <div class="mc-name">Matrix 1</div>
+        <div class="mc-desc">Uproszczony format — tylko EAN, tytuł i ilości na sklep.</div>
+        <span class="mc-badge">Uproszczony format</span>
+        <div class="mc-preview">
+          <span class="col-hl">EAN</span> | <span class="col-hl">Tytuł</span> | ABC | BAJKA | ERRATA…
+        </div>
+        <span class="auto-badge" id="auto-m1">⚡ auto-wykryty</span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Steps -->
+  <div class="steps">
+    <div class="step-item active" id="st1">
+      <div class="step-num">1</div>
+      <span>Wgraj plik</span>
+    </div>
+    <div class="step-line"></div>
+    <div class="step-item" id="st2">
+      <div class="step-num">2</div>
+      <span>Wybierz sklepy</span>
+    </div>
+    <div class="step-line"></div>
+    <div class="step-item" id="st3">
+      <div class="step-num">3</div>
+      <span>Pobierz</span>
+    </div>
+  </div>
+
+  <!-- KROK 1 -->
+  <div class="card" id="step1-card">
+
+    <div class="matrix-indicator m2" id="matrixBadge" onclick="changeMatrix()" title="Kliknij aby zmienić format">
+      <span class="mi-dot"></span>
+      <span id="matrixBadgeText">Matrix 2 — pełny eksport</span>
+      <span style="font-size:8px;opacity:0.5;margin-left:4px">zmień ↑</span>
+    </div>
+
+    <div class="section-label">Konfiguracja</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div class="field" style="margin-bottom:0">
+        <label>Nazwa firmy</label>
+        <input type="text" id="firma" placeholder="np. Morex GM Sp. z o.o.">
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label>Prefix kontrahenta</label>
+        <input type="text" id="prefix" placeholder="np. PIWO" oninput="updatePreview()">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div class="field" style="margin-bottom:0">
+        <label>NIP kontrahenta <span style="font-weight:300;text-transform:none;letter-spacing:0">(po tym WF-Mag znajdzie klienta)</span></label>
+        <input type="text" id="nip" placeholder="np. 1234567890" maxlength="13">
+      </div>
+      <div class="field" style="margin-bottom:0" id="vatField">
+        <label>Stawka VAT</label>
+        <select id="vatRate">
+          <option value="5" selected>5%</option>
+          <option value="8">8%</option>
+          <option value="23">23%</option>
+          <option value="0">0% (zw.)</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div class="field" style="margin-bottom:0">
+        <label>&nbsp;</label>
+        <div style="font-size:12px;color:var(--muted);padding:10px 12px;background:var(--s3);border-radius:7px;border:1px solid var(--border);line-height:1.5">
+          Kontrahent: <span id="preview-label" style="color:var(--accent);font-family:Space Mono,monospace">PREFIX 505</span><br>
+          <span style="font-size:11px">Jeden NIP dla wszystkich sklepów lub zostaw puste</span>
+        </div>
+      </div>
+      <div class="field" style="margin-bottom:0" id="vatInfo">
+        <label>&nbsp;</label>
+        <div style="font-size:12px;color:var(--muted);padding:10px 12px;background:var(--s3);border-radius:7px;border:1px solid var(--border);line-height:1.5">
+          Cena netto = brutto / <span id="vatCalc" style="color:var(--accent);font-family:Space Mono,monospace">1.05</span><br>
+          <span style="font-size:11px">Zmień stawkę jeśli produkt ma inny VAT</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Plik źródłowy</div>
+    <div class="drop" id="drop">
+      <input type="file" id="fileInput" accept=".xlsx">
+      <span class="drop-icon">📂</span>
+      <div class="drop-title">Upuść plik XLSX tutaj lub kliknij</div>
+      <div class="drop-hint">Format: eksport z systemu sklepowego</div>
+      <div class="file-loaded" id="fileLoaded">
+        <span>✓</span><span id="fileLoadedName"></span>
+      </div>
+    </div>
+
+    <div class="status" id="scan-status"></div>
+
+    <div class="actions">
+      <button class="btn btn-primary" id="scanBtn" disabled onclick="scanFile()">
+        Dalej — wykryj sklepy →
+      </button>
+    </div>
+  </div>
+
+  <!-- KROK 2 -->
+  <div class="card" id="shops-section">
+    <div class="section-label">Wybierz sklepy do importu</div>
+
+    <div class="shops-toolbar">
+      <button class="btn-tiny" onclick="selectAll()">Zaznacz wszystkie</button>
+      <button class="btn-tiny" onclick="selectNone()">Odznacz wszystkie</button>
+    </div>
+
+    <div class="shops-grid" id="shopsGrid"></div>
+
+    <div class="selected-count">Zaznaczono: <span id="selCount">0</span> sklepów</div>
+
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="resetAll()">← Wróć</button>
+      <button class="btn btn-primary" id="convertBtn" disabled onclick="convertFile()">
+        ⚡ Generuj pliki importu
+      </button>
+    </div>
+
+    <div class="status" id="conv-status"></div>
+  </div>
+
+</div>
+
+<footer>wfmag-converter · lokalny serwis konwersji</footer>
+
+<script>
+let selectedFile = null;
+let detectedShops = [];
+let shopToObjectNo = {};
+let currentMatrix = 'matrix2';
+
+/* ── MATRIX SELECTOR ── */
+function selectMatrix(type) {
+  currentMatrix = type;
+  document.querySelectorAll('.matrix-card').forEach(c => c.classList.remove('selected'));
+  document.querySelector(`.matrix-card[data-matrix="${type}"]`).classList.add('selected');
+
+  const badge = document.getElementById('matrixBadge');
+  const badgeText = document.getElementById('matrixBadgeText');
+
+  if (type === 'matrix1') {
+    badge.className = 'matrix-indicator m1';
+    badgeText.textContent = 'Matrix 1 — uproszczony';
+    document.body.classList.add('matrix1-mode');
+  } else {
+    badge.className = 'matrix-indicator m2';
+    badgeText.textContent = 'Matrix 2 — pełny eksport';
+    document.body.classList.remove('matrix1-mode');
+  }
+}
+
+function changeMatrix() {
+  document.getElementById('matrix-selector').classList.remove('hidden');
+  document.getElementById('matrix-selector').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* Auto-detect on file drop */
+async function autoDetect(file) {
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res = await fetch('/detect', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.matrix) {
+      selectMatrix(data.matrix);
+      // Show auto-detected badge
+      document.getElementById('auto-m1').classList.remove('show');
+      document.getElementById('auto-m2').classList.remove('show');
+      if (data.matrix === 'matrix1') {
+        document.getElementById('auto-m1').classList.add('show');
+      } else {
+        document.getElementById('auto-m2').classList.add('show');
+      }
+    }
+  } catch(e) {}
+}
+
+/* ── VAT ── */
+document.getElementById('vatRate').addEventListener('change', function() {
+  const rate = parseInt(this.value);
+  const mult = (1 + rate / 100).toFixed(2);
+  document.getElementById('vatCalc').textContent = mult;
+});
+
+/* ── PREVIEW ── */
+function updatePreview() {
+  const prefix = document.getElementById('prefix').value.trim().toUpperCase() || 'PREFIX';
+  const exampleNo = Object.values(shopToObjectNo)[0] || '505';
+  document.getElementById('preview-label').textContent = `${prefix} ${exampleNo}`;
+}
+
+/* ── FILE ── */
+const drop      = document.getElementById('drop');
+const fileInput = document.getElementById('fileInput');
+const scanBtn   = document.getElementById('scanBtn');
+
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', e => {
+  e.preventDefault(); drop.classList.remove('over');
+  if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => { if (e.target.files[0]) setFile(e.target.files[0]); });
+
+function setFile(f) {
+  if (!f.name.endsWith('.xlsx')) { showStatus('scan-status','err','Plik musi być w formacie XLSX'); return; }
+  selectedFile = f;
+  document.getElementById('fileLoadedName').textContent = f.name;
+  document.getElementById('fileLoaded').classList.add('show');
+  drop.classList.add('loaded');
+  scanBtn.disabled = false;
+  hideStatus('scan-status');
+  autoDetect(f);
+}
+
+/* ── SCAN ── */
+async function scanFile() {
+  if (!selectedFile) return;
+  showStatus('scan-status', 'spin', 'Analizuję plik...');
+  scanBtn.disabled = true;
+
+  const fd = new FormData();
+  fd.append('file', selectedFile);
+  fd.append('matrix', currentMatrix);
+
+  try {
+    const res = await fetch('/scan', { method:'POST', body:fd });
+    const data = await res.json();
+    if (!res.ok) { showStatus('scan-status','err', data.error); scanBtn.disabled=false; return; }
+
+    detectedShops = data.shops;
+    shopToObjectNo = data.shop_to_object_no || {};
+    updatePreview();
+    buildShopsGrid(data.shops, data.shop_counts, data.shop_to_object_no, data.total_rows);
+    hideStatus('scan-status');
+
+    // Hide matrix selector, show step 2
+    document.getElementById('matrix-selector').classList.add('hidden');
+    setStep(2);
+    document.getElementById('shops-section').classList.add('show');
+    document.getElementById('shops-section').scrollIntoView({ behavior:'smooth', block:'start' });
+
+  } catch(e) {
+    showStatus('scan-status','err','Błąd połączenia z serwerem');
+    scanBtn.disabled = false;
+  }
+}
+
+/* ── SHOPS GRID ── */
+function buildShopsGrid(shops, counts, objNos, total) {
+  const grid = document.getElementById('shopsGrid');
+  grid.innerHTML = '';
+  shops.forEach(shop => {
+    const cnt = counts[shop] || 0;
+    const no  = (objNos && objNos[shop]) ? `<span style="color:var(--accent);font-family:Space Mono,monospace;font-size:11px">#${objNos[shop]}</span>` : '';
+    const div = document.createElement('div');
+    div.className = 'shop-item';
+    div.dataset.shop = shop;
+    div.innerHTML = `
+      <input type="checkbox" value="${shop}">
+      <div class="shop-check">
+        <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+          <path d="M1 4L3.5 6.5L9 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="shop-info">
+        <div class="shop-name" style="display:flex;align-items:center;gap:8px">${shop} ${no}</div>
+        <div class="shop-count"><span>${cnt}</span> artykułów z ilością &gt; 0</div>
+      </div>`;
+    div.addEventListener('click', () => toggleShop(div));
+    grid.appendChild(div);
+  });
+  updateCount();
+}
+
+function toggleShop(div) {
+  div.classList.toggle('checked');
+  div.querySelector('input').checked = div.classList.contains('checked');
+  updateCount();
+}
+
+function selectAll()  { document.querySelectorAll('.shop-item').forEach(d => { d.classList.add('checked');    d.querySelector('input').checked=true;  }); updateCount(); }
+function selectNone() { document.querySelectorAll('.shop-item').forEach(d => { d.classList.remove('checked'); d.querySelector('input').checked=false; }); updateCount(); }
+
+function updateCount() {
+  const n = document.querySelectorAll('.shop-item.checked').length;
+  document.getElementById('selCount').textContent = n;
+  document.getElementById('convertBtn').disabled = n === 0;
+}
+
+/* ── CONVERT ── */
+async function convertFile() {
+  const checked = [...document.querySelectorAll('.shop-item.checked')].map(d => d.dataset.shop);
+  if (!checked.length) return;
+
+  showStatus('conv-status','spin','Generuję pliki...');
+  document.getElementById('convertBtn').disabled = true;
+
+  const fd = new FormData();
+  fd.append('file', selectedFile);
+  fd.append('matrix', currentMatrix);
+  fd.append('firma', document.getElementById('firma').value.trim() || 'Firma');
+  fd.append('prefix', document.getElementById('prefix').value.trim().toUpperCase());
+  fd.append('nip', document.getElementById('nip').value.trim());
+  fd.append('vat_rate', document.getElementById('vatRate').value);
+  checked.forEach(s => fd.append('shops', s));
+
+  try {
+    const res = await fetch('/convert', { method:'POST', body:fd });
+    if (!res.ok) {
+      const d = await res.json();
+      showStatus('conv-status','err', d.error);
+      return;
+    }
+    const blob = await res.blob();
+    const disp = res.headers.get('Content-Disposition') || '';
+    const m = disp.match(/filename="?([^"]+)"?/);
+    const fname = m ? m[1] : 'import_wfmag.txt';
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href=url; a.download=fname; a.click();
+    URL.revokeObjectURL(url);
+
+    const isZip = fname.endsWith('.zip');
+    showStatus('conv-status','ok',
+      isZip
+        ? `✓ Pobrano archiwum <strong>${fname}</strong> z ${checked.length} plikami. Importuj każdy plik osobno w WF-Mag: <em>Inne → Wymiana danych → Import</em>`
+        : `✓ Pobrano plik <strong>${fname}</strong>. Importuj w WF-Mag: <em>Inne → Wymiana danych → Import</em>`
+    );
+    setStep(3);
+  } catch(e) {
+    showStatus('conv-status','err','Błąd połączenia z serwerem');
+  } finally {
+    document.getElementById('convertBtn').disabled = false;
+  }
+}
+
+/* ── UTILS ── */
+function resetAll() {
+  selectedFile = null;
+  fileInput.value = '';
+  document.getElementById('fileLoaded').classList.remove('show');
+  drop.classList.remove('loaded','over');
+  scanBtn.disabled = true;
+  document.getElementById('shops-section').classList.remove('show');
+  document.getElementById('matrix-selector').classList.remove('hidden');
+  document.getElementById('auto-m1').classList.remove('show');
+  document.getElementById('auto-m2').classList.remove('show');
+  hideStatus('scan-status'); hideStatus('conv-status');
+  setStep(1);
+}
+
+function setStep(n) {
+  ['st1','st2','st3'].forEach((id,i) => {
+    const el = document.getElementById(id);
+    el.className = 'step-item';
+    if (i+1 < n) el.classList.add('done');
+    else if (i+1 === n) el.classList.add('active');
+  });
+}
+
+function showStatus(id, type, msg) {
+  const el = document.getElementById(id);
+  el.className = `status show ${type}`;
+  const sp = type==='spin' ? '<div class="spinner"></div>' : '';
+  el.innerHTML = `${sp}<span>${msg}</span>`;
+}
+function hideStatus(id) {
+  document.getElementById(id).className = 'status';
+}
+
+// Default selection
+selectMatrix('matrix2');
+</script>
+</body>
+</html>
