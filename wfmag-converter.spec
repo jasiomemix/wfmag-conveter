@@ -5,7 +5,7 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[('templates', 'templates')],
-    hiddenimports=['openpyxl'],
+    hiddenimports=['openpyxl', 'webview', 'clr'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -26,6 +26,6 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=True,
+    console=False,
     icon=None,
 )

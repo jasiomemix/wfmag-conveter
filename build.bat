@@ -15,7 +15,7 @@ if errorlevel 1 (
 )
 
 echo [1/3] Instalowanie zaleznosci...
-pip install --upgrade flask openpyxl pyinstaller
+pip install --upgrade flask openpyxl pywebview pyinstaller
 if errorlevel 1 (
     echo [BLAD] Nie udalo sie zainstalowac zaleznosci.
     pause
